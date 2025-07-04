@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#b3c9c1" />
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("service-worker.js").then(
+          () => console.log("✅ Service Worker registrado"),
+          (err) => console.error("❌ Error al registrar SW:", err)
+        );
+      });
+    }
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verificador de Productos</title>
+  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/751/751463.png" />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #eee9c7;
+      text-align: center;
+    }
+    .pantalla {
+      display: none;
+      padding: 20px;
+    }
+    .active {
+      display: block !important;
+    }
+    button {
+      background-color: #b3c9c1;
+      border: none;
+      padding: 15px 30px;
+      margin: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 10px;
+    }
+    input, label {
+      padding: 10px;
+      font-size: 18px;
+      width: 250px;
+      margin: 10px auto;
+      display: block;
+    }
+    #video, #camComparacion {
+      width: 300px;
+      height: 200px;
+      border: 2px solid #cec7b6;
+      margin-top: 10px;
+    }
+    img.producto-img {
+      width: 250px;
+      margin: 10px auto;
+      border: 2px solid #cec7b6;
+    }
+    .barra-similitud {
+      width: 80%;
+      height: 20px;
+      background-color: #cec7b6;
+      margin: 10px auto;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .barra-similitud span {
+      display: block;
+      height: 100%;
+      background-color: #4CAF50;
+      width: 0%;
+      transition: width 1s;
+    }
+
+    #comparacion img {
+      display: block;
+      margin: 10px auto;
+      border-radius: 10px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.2);
+    }
+
+    #scanner-container video {
+      width: 100% !important;
+      height: auto !important;
+      max-width: 240px;
+      max-height: 180px;
+      object-fit: cover;
+      border-radius: 10px;
+    }
+
+
+
+  </style>
+
+  <!-- Axios para subir imágenes -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js" defer></script>
+
+</head>
+<body>
+  <div class="pantalla active" id="pantallaInicio">
+    <h2>Bienvenido a la app de verificación de productos</h2>
+    <p>Empecemos</p>
+    <button onclick="irAlMenu()">EMPEZAR</button>
+  </div>
+
+  <div class="pantalla" id="menu">
+    <h2>Menú Principal</h2>
+    <button onclick="mostrarProceso()">Iniciar Proceso</button>
+    <button onclick="pedirPIN()">Agregar Productos</button>
+  </div>
+
+  <div class="pantalla" id="autenticacion">
+    <h3>Acceso restringido</h3>
+    <input type="password" placeholder="Ingresa PIN" id="pinInput" />
+    <button onclick="verificarPIN()">Ingresar</button>
+    <button onclick="volverMenu()">Cancelar</button>
+  </div>
+
+  <div class="pantalla" id="subida">
+    <h3>Agregar Producto</h3>
+    <label for="nuevoCodigo">Código de barras:</label>
+    <input type="text" id="nuevoCodigo" placeholder="Código de barras" />
+    <label for="nuevoLote">No. Parte (lote):</label>
+    <input type="text" id="nuevoLote" placeholder="No. parte/lote" />
+    <label for="nuevoUsuario">¿Quién sube el producto?</label>
+    <input type="text" id="nuevoUsuario" placeholder="Empleado encargado" />
+    <label for="nuevaImagen">Tomar imagen del producto:</label>
+    <input type="file" id="nuevaImagen" accept="image/*" capture="environment" />
+    <button onclick="subirProducto()">Subir</button>
+    <button onclick="volverMenu()">Volver al menú</button>
+    <button onclick="limpiarCamposSubida()">🧹 Limpiar Campos</button>
+  </div>
+
+  <div class="pantalla" id="proceso">
+    <h3>¿Cuántos productos vas a verificar?</h3>
+    <input type="number" id="cantidadInput" min="1" />
+    <button onclick="iniciarProceso()">Confirmar</button>
+    <button onclick="volverMenu()">Cancelar</button>
+  </div>
+
+  <div class="pantalla" id="camara">
+  <h3>Escanea el código de barras del producto</h3>
+
+  <div style="display: flex; flex-direction: column; align-items: center;">
+    <div id="scanner-container" style="width: 240px; height: 180px; border: 2px solid #cec7b6; overflow: hidden;"></div>
+    <div id="codigoLeido" style="font-weight: bold; margin-top: 10px;"></div>
+
+    <!-- Botones visibles debajo del escáner -->
+    <button onclick="volverProceso()">🔙 Volver a Cantidad</button>
+    <button onclick="forzarSalirAlMenu()">🏠 Volver al Menú</button>
+  </div>
+</div>
+
+
+  <div class="pantalla" id="resultado">
+    <h3>Producto detectado:</h3>
+    <img id="imagenProducto" class="producto-img" src="" alt="Imagen del producto">
+    <p id="textoResultado">✅ Producto identificado</p>
+    <button onclick="iniciarComparacion()">Comparar con producto real</button>
+  </div>
+
+  <div class="pantalla" id="comparacion">
+    <h3>Comparación de producto</h3>
+    <video id="camComparacion" autoplay playsinline muted></video>
+    <canvas id="canvasComparacion" style="display:none;"></canvas>
+    <br>
+    <button onclick="capturarYComparar()">📸 Tomar Foto</button>
+    <p id="similitudTexto"></p>
+    <div class="barra-similitud"><span id="barraSimilitud"></span></div>
+    <button id="btnReintentarComparacion" style="display:none;" onclick="iniciarComparacion()">📸 Volver a intentar comparación</button>
+  </div>
+
+  <div class="pantalla" id="finalizado">
+    <h3>Verificación completada</h3>
+    <p id="resumenFinal"></p>
+    <button onclick="irAlMenu()">🏠 Volver al Menú</button>
+  </div>
+
+
+  <!-- Quagga para escaneo de código de barras -->
+  <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
+
+  <!-- TensorFlow.js para IA -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.14.0"></script>
+
+  <!-- Teachable Machine para clasificación de imágenes -->
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.4/dist/teachablemachine-image.min.js"></script>
+
+  <!-- Tu lógica principal de la app -->
+  <script src="verificador-app.js"></script>
+</body>
+</html>
