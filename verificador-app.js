@@ -164,7 +164,7 @@ function mostrarResultadoProducto(codigo) {
 }
 
 async function cargarModeloTeachable() {
-  modeloTM = await tmImage.load('./modelo_productos/model.json', './modelo_productos/metadata.json');
+  modeloTM = await tmImage.load('./model.json', './metadata.json');
   console.log("✅ Modelo cargado");
 }
 
